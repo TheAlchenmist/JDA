@@ -52,7 +52,7 @@ public class EntityBuilder
     public static final String MISSING_CHANNEL = "MISSING_CHANNEL";
     public static final String MISSING_USER = "MISSING_USER";
 
-    private static final Pattern channelMentionPattern = Pattern.compile("<#(\\d+)>");
+    private static final Pattern channelMentionPattern = Pattern.compile("<#(\\d{16,20})>");
 
     protected final JDAImpl api;
     protected final TLongObjectMap<JSONObject> cachedGuildJsons = MiscUtil.newLongMap();
@@ -861,17 +861,24 @@ public class EntityBuilder
                     }
                 }
             }
-            message.setMentionedRoles(new LinkedList<Role>(mentionedRoles.values()));
+            message.setMentionedRoles(new LinkedList<>(mentionedRoles.values()));
 
             List<TextChannel> mentionedChannels = new LinkedList<>();
             TLongObjectMap<TextChannel> chanMap = ((GuildImpl) textChannel.getGuild()).getTextChannelsMap();
             Matcher matcher = channelMentionPattern.matcher(content);
             while (matcher.find())
             {
-                TextChannel channel = chanMap.get(Long.parseLong(matcher.group(1)));
-                if(channel != null && !mentionedChannels.contains(channel))
+                try
                 {
-                    mentionedChannels.add(channel);
+                    TextChannel channel = chanMap.get(MiscUtil.parseSnowflake(matcher.group(1)));
+                    if (channel != null && !mentionedChannels.contains(channel))
+                    {
+                        mentionedChannels.add(channel);
+                    }
+                }
+                catch (NumberFormatException ignored)
+                {
+                    //Some bad input (Someone deliberately writing message with mention of too big id
                 }
             }
             message.setMentionedChannels(mentionedChannels);
