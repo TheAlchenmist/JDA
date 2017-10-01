@@ -92,13 +92,13 @@ public class PresenceImpl implements Presence
     @Override
     public void setGame(Game game)
     {
-        setPresence(status, game, idle);
+        setPresence(status, game);
     }
 
     @Override
     public void setIdle(boolean idle)
     {
-        setPresence(status, game, idle);
+        setPresence(status, idle);
     }
 
     @Override
@@ -126,6 +126,7 @@ public class PresenceImpl implements Presence
     @Override
     public void setPresence(OnlineStatus status, Game game)
     {
+<<<<<<< HEAD
         DataObject gameObj = getGameJson(game);
 
         Checks.check(status != OnlineStatus.UNKNOWN,
@@ -141,11 +142,15 @@ public class PresenceImpl implements Presence
         update(object);
         this.status = status;
         this.game = gameObj == null ? null : game;
+=======
+        setPresence(status, game, idle);
+>>>>>>> master
     }
 
     @Override
     public void setPresence(OnlineStatus status, boolean idle)
     {
+<<<<<<< HEAD
         Checks.check(status != OnlineStatus.UNKNOWN,
                 "Cannot set the presence status to an unknown OnlineStatus!");
         if (status == OnlineStatus.OFFLINE || status == null)
@@ -159,11 +164,15 @@ public class PresenceImpl implements Presence
         update(object);
         this.idle = idle;
         this.status = status;
+=======
+        setPresence(status, game, idle);
+>>>>>>> master
     }
 
     @Override
     public void setPresence(Game game, boolean idle)
     {
+<<<<<<< HEAD
         DataObject gameObj = getGameJson(game);
         DataObject object = new DataObject();
 
@@ -173,6 +182,9 @@ public class PresenceImpl implements Presence
         update(object);
         this.idle = idle;
         this.game = gameObj == null ? null : game;
+=======
+        setPresence(status, game, idle);
+>>>>>>> master
     }
 
 

@@ -43,8 +43,14 @@ public class MessageBulkDeleteHandler extends SocketHandler
             SocketHandler handler = api.getClient().getHandler("MESSAGE_DELETE");
             ids.forEach(id ->
             {
+<<<<<<< HEAD
                 handler.handle(responseNumber, new DataObject()
                     .put("d", new DataObject()
+=======
+                handler.handle(responseNumber, new DataObject()
+                    .put("t", "MESSAGE_DELETE")
+                    .put("d", new DataObject()
+>>>>>>> master
                         .put("channel_id", Long.toUnsignedString(channelId))
                         .put("id", id)));
             });

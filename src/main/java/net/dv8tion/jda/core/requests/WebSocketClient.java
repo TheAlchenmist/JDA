@@ -60,9 +60,11 @@ import java.util.zip.InflaterInputStream;
 
 public class WebSocketClient extends WebSocketAdapter implements WebSocketListener
 {
-    public static final SimpleLog LOG = SimpleLog.getLog("JDASocket");
+    public static final SimpleLog LOG = SimpleLog.getLog(WebSocketClient.class);
     public static final int DISCORD_GATEWAY_VERSION = 6;
     public static final int IDENTIFY_DELAY = 5;
+
+    private static final String INVALIDATE_REASON = "INVALIDATE_SESSION";
 
     protected final JDAImpl api;
     protected final JDA.ShardInfo shardInfo;
@@ -531,6 +533,9 @@ public class WebSocketClient extends WebSocketAdapter implements WebSocketListen
 
         CloseCode closeCode = null;
         int rawCloseCode = 1000;
+        //When we get 1000 from remote close we will try to resume
+        // as apparently discord doesn't understand what "graceful disconnect" means
+        boolean isInvalidate = false;
 
         if (keepAliveThread != null)
         {
@@ -547,6 +552,14 @@ public class WebSocketClient extends WebSocketAdapter implements WebSocketListen
                 LOG.debug("WebSocket connection closed with code " + closeCode);
             else
                 LOG.warn("WebSocket connection closed with unknown meaning for close-code " + rawCloseCode);
+        }
+        if (clientCloseFrame != null
+            && clientCloseFrame.getCloseCode() == 1000
+            && Objects.equals(clientCloseFrame.getCloseReason(), INVALIDATE_REASON))
+        {
+            //When we close with 1000 we properly dropped our session due to invalidation
+            // in that case we can be sure that resume will not work and instead we invalidate and reconnect here
+            isInvalidate = true;
         }
 
         // null is considered -reconnectable- as we do not know the close-code meaning
@@ -570,7 +583,7 @@ public class WebSocketClient extends WebSocketAdapter implements WebSocketListen
         }
         else
         {
-            if (rawCloseCode == 1000)
+            if (isInvalidate)
                 invalidate(); // 1000 means our session is dropped so we cannot resume
             api.getEventManager().handle(new DisconnectEvent(api, serverCloseFrame, clientCloseFrame, closedByServer, OffsetDateTime.now()));
             if (sessionId == null && reconnectQueue != null)
@@ -715,10 +728,10 @@ public class WebSocketClient extends WebSocketAdapter implements WebSocketListen
                 int closeCode = isResume ? 4000 : 1000;
                 if (isResume)
                     LOG.debug("Session can be recovered... Closing and sending new RESUME request");
-                else if (!handleIdentifyRateLimit) // this can also mean we got rate limited in IDENTIFY (no need to invalidate then)
+                else
                     invalidate();
 
-                close(closeCode, "INVALIDATE_SESSION");
+                close(closeCode, INVALIDATE_REASON);
                 break;
             case WebSocketCode.HELLO:
                 LOG.debug("Got HELLO packet (OP 10). Initializing keep-alive.");
@@ -833,6 +846,7 @@ public class WebSocketClient extends WebSocketAdapter implements WebSocketListen
 
         api.getTextChannelMap().clear();
         api.getVoiceChannelMap().clear();
+        api.getCategoryMap().clear();
         api.getGuildMap().clear();
         api.getUserMap().clear();
         api.getPrivateChannelMap().clear();
@@ -1011,11 +1025,13 @@ public class WebSocketClient extends WebSocketAdapter implements WebSocketListen
         {
             LOG.warn("Got an unexpected Json-parse error. Please redirect following message to the devs:\n\t"
                     + ex.getMessage() + "\n\t" + type + " -> " + content);
-            LOG.log(ex);
+            LOG.warn(ex);
         }
         catch (Exception ex)
         {
-            LOG.log(ex);
+            LOG.fatal("Got an unexpected error. Please redirect following message to the devs:\n\t"
+                    + type + " -> " + content);
+            LOG.fatal(ex);
         }
     }
 
@@ -1053,7 +1069,7 @@ public class WebSocketClient extends WebSocketAdapter implements WebSocketListen
     @Override
     public void handleCallbackError(WebSocket websocket, Throwable cause)
     {
-        LOG.log(cause);
+        LOG.fatal(cause);
         api.getEventManager().handle(new ExceptionEvent(api, cause, true));
     }
 
@@ -1109,7 +1125,7 @@ public class WebSocketClient extends WebSocketAdapter implements WebSocketListen
         }
         catch (InterruptedException e)
         {
-            LOG.log(e);
+            LOG.fatal(e);
         }
         finally
         {
@@ -1142,7 +1158,7 @@ public class WebSocketClient extends WebSocketAdapter implements WebSocketListen
         }
         catch (InterruptedException e)
         {
-            LOG.log(e);
+            LOG.fatal(e);
         }
         finally
         {
@@ -1172,7 +1188,7 @@ public class WebSocketClient extends WebSocketAdapter implements WebSocketListen
         }
         catch (InterruptedException e)
         {
-            LOG.log(e);
+            LOG.fatal(e);
         }
         finally
         {
@@ -1192,7 +1208,7 @@ public class WebSocketClient extends WebSocketAdapter implements WebSocketListen
         }
         catch (InterruptedException e)
         {
-            LOG.log(e);
+            LOG.fatal(e);
         }
         finally
         {
@@ -1210,7 +1226,7 @@ public class WebSocketClient extends WebSocketAdapter implements WebSocketListen
         }
         catch (InterruptedException e)
         {
-            LOG.log(e);
+            LOG.fatal(e);
         }
         finally
         {
